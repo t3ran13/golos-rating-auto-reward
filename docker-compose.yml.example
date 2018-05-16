@@ -22,8 +22,8 @@ services:
     build:
       context: ./docker/local
       dockerfile: dockerfile-php7-fpm
-    ports:
-      - "9000:9000"
+    #ports:
+    #  - "9000:9000"
     volumes:
       - '.:/var/www/golos-event-listener'
     environment:
@@ -43,7 +43,7 @@ services:
       - '/var/run/docker.sock:/var/run/docker.sock'
     command:
       - 'start-cron'
-      - '\*/5 \* \* \* \* /usr/local/bin/docker exec --user www-data -i golosratingautoreward_php-fpm_1 bash -c "php /var/www/golos-event-listener/StartApp.php" >> /var/log/cron/cron-auto-reward.log 2>&1'
+      - '\*/10 \* \* \* \* /usr/local/bin/docker exec --user www-data -i golos-rating-auto-reward_php-fpm_1 bash -c "php /var/www/golos-event-listener/StartApp.php" >> /var/log/cron/cron-auto-reward.log 2>&1'
     depends_on:
       - "php-fpm"
       - "redis"
