@@ -8,8 +8,8 @@ use GolosPhpEventListener\app\process\ProcessAbstract;
 use GolosPhpEventListener\app\process\ProcessInterface;
 use GrapheneNodeClient\Commands\CommandQueryData;
 use GrapheneNodeClient\Commands\Single\GetContentCommand;
-use GrapheneNodeClient\Connectors\WebSocket\GolosWSConnector;
 use MyApp\Db\RedisManager;
+use MyApp\Handlers\GotTransferHandler;
 
 /**
  *
@@ -20,8 +20,27 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
     protected $isRunning         = true;
     protected $rewardUserPercent = 80;
     protected $priority          = 16;
-    protected $memoRatingReward  = 'Награждения авторов из Альтернативного ТОПа Голоса {post_link}';
+    protected $memoRatingReward  = 'Награждения авторов из Альтернативного ТОПа Голоса {post_link} (Вы можете ВЫКЛЮЧИТЬ награды переводом с заметкой "' . GotTransferHandler::COMMAND_REWARDS_OFF .'")';
     protected $postLink          = 'https://goldvoice.club/{category}/@{author}/{permlink}';
+    protected $connectorClassName = 'GrapheneNodeClient\Connectors\WebSocket\GolosWSConnector';
+    protected $rewardToken1 = 'GBG';
+    protected $rewardToken2 = 'GOLOS';
+
+    /**
+     * @return ConnectorInterface|null
+     */
+    public function getConnector()
+    {
+        return $this->connector;
+    }
+
+    /**
+     *
+     */
+    public function initConnector()
+    {
+        $this->connector = new $this->connectorClassName();
+    }
 
     /**
      * run before process start
@@ -64,16 +83,15 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
 //        echo PHP_EOL . ' - first' . print_r($first, true);
 
         $rewardPart = round($this->rewardUserPercent / 100, 3);
+        $this->initConnector();
 
         while ($this->isRunning && $first !== false) {
-
-            $connector = new GolosWSConnector();
 
             $commandQuery = new CommandQueryData();
             $commandQuery->setParamByKey('0', $first['author']);//blockNum
             $commandQuery->setParamByKey('1', $first['permlink']);//onlyVirtual
 
-            $command = new GetContentCommand($connector);
+            $command = new GetContentCommand($this->getConnector());
             $data = $command->execute(
                 $commandQuery,
                 'result'
@@ -97,18 +115,20 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
             $memoRatingReward = str_replace('{post_link}', $postLink, $this->memoRatingReward);
             if ($totalUsers > 0) {
                 // got value in 1000 times more
-                $gbgReward = floor(str_replace(' GBG', '', $first['sbd_payout']) * $rewardPart / $totalUsers * 1000);
-                $golosReward = floor(str_replace(' GOLOS', '', $first['steem_payout']) * $rewardPart / $totalUsers * 1000);
+                $gbgReward = floor(str_replace(' ' . $this->rewardToken1, '', $first['sbd_payout']) * $rewardPart / $totalUsers * 1000);
+                $golosReward = floor(str_replace(' ' . $this->rewardToken2, '', $first['steem_payout']) * $rewardPart / $totalUsers * 1000);
+                $stopListUsers = $this->getDBManager()->ratingUsersRewardsStopListGet();
 
                 if ($gbgReward > 0 || $golosReward > 0) {
                     $rewards = [];
                     if ($gbgReward > 0) {
-                        $rewards[] = number_format($gbgReward / 1000, 3, '.', '') . ' GBG';
+                        $rewards[] = number_format($gbgReward / 1000, 3, '.', '') . ' ' . $this->rewardToken1;
                     }
                     if ($golosReward > 0) {
-                        $rewards[] = number_format($golosReward / 1000, 3, '.', '') . ' GOLOS';
+                        $rewards[] = number_format($golosReward / 1000, 3, '.', '') . ' ' . $this->rewardToken2;
                     }
-                    foreach ($meta['users'] as $user) {
+                    $users = array_diff($meta['users'], $stopListUsers);
+                    foreach ($users as $user) {
                         $dataForReward = [
                             'author'  => $user,
                             'rewards' => $rewards,
@@ -117,7 +137,8 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
                         $this->getDBManager()->ratingUsersRewardAddToQueue($dataForReward);
                     }
                     $usersTotal = count($meta['users']);
-                    echo PHP_EOL . date('Y.m.d H:i:s') . " - {$usersTotal} users added for reward from post /{$data['category']}/@{$data['author']}/{$data['permlink']}";
+                    $usersRewarded = count($users);
+                    echo PHP_EOL . date('Y.m.d H:i:s') . " - {$usersRewarded} from {$usersTotal} users added for reward (" . implode(', ', $rewards) . ") from post /{$data['category']}/@{$data['author']}/{$data['permlink']}";
                 }
             }
             $this->getDBManager()->ratingPostRewardRemovePostFromQueue($first);
