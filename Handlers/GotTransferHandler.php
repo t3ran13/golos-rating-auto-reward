@@ -16,8 +16,8 @@ class GotTransferHandler extends HandlerAbstract
 {
     const COMMAND_REWARDS_ON = 'on';
     const COMMAND_REWARDS_OFF = 'off';
-    protected $memoRewardsOff = 'Награды за рейтинн ВЫКЛЮЧЕНЫ. Вы можете ВКЛЮЧИТЬ награды переводом с заметкой "' . self::COMMAND_REWARDS_ON .'"';
-    protected $memoRewardsOn = 'Награды за рейтинн ВКЛЮЧЕНЫ. Вы можете ВЫКЛЮЧИТЬ награды переводом с заметкой "' . self::COMMAND_REWARDS_OFF .'"';
+    protected $memoRewardsOff = 'Награды за рейтинг ВЫКЛЮЧЕНЫ. Вы можете ВКЛЮЧИТЬ награды переводом с заметкой "' . self::COMMAND_REWARDS_ON .'"';
+    protected $memoRewardsOn = 'Награды за рейтинг ВКЛЮЧЕНЫ. Вы можете ВЫКЛЮЧИТЬ награды переводом с заметкой "' . self::COMMAND_REWARDS_OFF .'"';
     protected $priority = 15;
 
     /**
