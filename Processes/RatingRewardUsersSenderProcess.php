@@ -9,7 +9,6 @@ use GolosPhpEventListener\app\process\ProcessAbstract;
 use GolosPhpEventListener\app\process\ProcessInterface;
 use GrapheneNodeClient\Commands\CommandQueryData;
 use GrapheneNodeClient\Commands\Single\BroadcastTransactionSynchronousCommand;
-use GrapheneNodeClient\Connectors\WebSocket\GolosWSConnector;
 use GrapheneNodeClient\Tools\Transaction;
 use MyApp\Db\RedisManager;
 
@@ -23,6 +22,7 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
     private $rewardPoolName;
     private $rewardPoolWif;
     protected $priority = 17;
+    protected $connectorClassName = 'GrapheneNodeClient\Connectors\WebSocket\GolosWSConnector';
 
     /**
      * RatingRewardUsersSenderProcess constructor.
@@ -33,6 +33,22 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
         parent::__construct();
         $this->rewardPoolName = getenv('REWARD_POOL_NAME');
         $this->rewardPoolWif = getenv('REWARD_POOL_WIF');
+    }
+
+    /**
+     * @return ConnectorInterface|null
+     */
+    public function getConnector()
+    {
+        return $this->connector;
+    }
+
+    /**
+     *
+     */
+    public function initConnector()
+    {
+        $this->connector = new $this->connectorClassName();
     }
 
     /**
@@ -75,8 +91,9 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
         $total = $this->getDBManager()->ratingUsersRewardGetQueueLength();
         $connector = null;
         $command = null;
+        $this->initConnector();
         if ($total > 0) {
-            $connector = new GolosWSConnector();
+            $connector = $this->getConnector();
             $command = new BroadcastTransactionSynchronousCommand($connector);
         }
         for ($i = 50; $this->isRunning && ($i < $total || $i - $total < 50); $i += 50) {
