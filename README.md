@@ -29,6 +29,7 @@ DB structure MyApp:
 - DB0
     - myapp:rewards-post-list //list of json
     - myapp:rewards-users-list //list of json
+    - myapp:rewards-users-stop-list //list of json
     
     
 

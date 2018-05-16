@@ -91,4 +91,35 @@ class RedisManager extends \GolosPhpEventListener\app\db\RedisManager
     {
         return $this->connect->lRem("myapp:rewards-users-list", 0, json_encode($data, JSON_UNESCAPED_UNICODE)) === 0 ? false : true;
     }
+
+    /**
+     * @param string $userName
+     *
+     * @return int the length of the list after the push operation.
+     */
+    public function ratingUsersRewardsStopListAddUser($userName)
+    {
+        $status = $this->connect->rPush("myapp:rewards-users-stop-list", $userName);
+
+        return $status;
+    }
+
+    /**
+     * @param string $userName
+     *
+     * @return bool
+     */
+    public function ratingUsersRewardsStopListRemoveUser($userName)
+    {
+        return $this->connect->lRem("myapp:rewards-users-stop-list", 0, $userName) === 0 ? false : true;
+    }
+
+    /**
+     *
+     * @return bool
+     */
+    public function ratingUsersRewardsStopListGet()
+    {
+        return $this->connect->lRange("myapp:rewards-users-stop-list", 0, -1);
+    }
 }
