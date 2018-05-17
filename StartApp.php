@@ -24,7 +24,7 @@ define('PATH', __DIR__);
 require __DIR__ . "/Autoloader.php"; // only in GrapheneNodeClient project
 require __DIR__ . '/vendor/autoload.php';
 
-echo PHP_EOL . '------ StartApp.php ------';
+echo PHP_EOL . '------ StartApp.php ------' . date('Y-m-d H:i:s');
 
 $appConfig = new AppConfig();
 $appConfig->addListener(['op:1:author' => 't3ran13', 'op:0' => 'author_reward'], new RatingGotRewardHandler());
