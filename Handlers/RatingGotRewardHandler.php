@@ -55,10 +55,10 @@ class RatingGotRewardHandler extends HandlerAbstract
 //        echo PHP_EOL . ' --- listener with id/pid=' . $listenerId . '/' . $this->getPid() . ' is running';
         $events = $this->getDBManager()->eventsListByListenerId($listenerId);
         foreach ($events as $key => $event) {
-            $ids = str_replace("app:events:{$listenerId}:", '', $key);
-            list($blockN, $trxInBlock) = explode(':', $ids);
-            $this->getDBManager()->eventDelete($listenerId, $blockN, $trxInBlock);
             $event = json_decode($event, true);
+            $blockN = $event['block'];
+            $trxInBlock = $event['trx_in_block'];
+            $this->getDBManager()->eventDelete($listenerId, $blockN, $trxInBlock);
 //            echo PHP_EOL . ' --- listener with id=' . $listenerId . ' handle and deleted event with key=' . $key;
 
             if (
