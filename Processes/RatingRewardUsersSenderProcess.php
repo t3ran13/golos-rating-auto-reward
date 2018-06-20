@@ -9,6 +9,7 @@ use GolosPhpEventListener\app\process\ProcessAbstract;
 use GolosPhpEventListener\app\process\ProcessInterface;
 use GrapheneNodeClient\Commands\CommandQueryData;
 use GrapheneNodeClient\Commands\Single\BroadcastTransactionSynchronousCommand;
+use GrapheneNodeClient\Tools\Bandwidth;
 use GrapheneNodeClient\Tools\Transaction;
 use MyApp\Db\RedisManager;
 
@@ -23,6 +24,7 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
     private $rewardPoolWif;
     protected $priority = 17;
     protected $connectorClassName = 'GrapheneNodeClient\Connectors\WebSocket\GolosWSConnector';
+    protected $connector;
 
     /**
      * RatingRewardUsersSenderProcess constructor.
@@ -173,7 +175,7 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
         ) {
             try {
                 if ($this->connector === null) {
-                    $this->connectorClassName = $this->connectorClassNameForStartCheck;
+                    $this->connectorClassName = $this->connectorClassName;
                     $this->connector = $this->getConnector();
                 }
                 $connector = $this->connector;
