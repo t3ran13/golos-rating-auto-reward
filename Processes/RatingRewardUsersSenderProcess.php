@@ -40,6 +40,10 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
      */
     public function getConnector()
     {
+        if ($this->connector === null) {
+            $this->initConnector();
+        }
+
         return $this->connector;
     }
 
@@ -86,7 +90,7 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
     {
         pcntl_setpriority($this->priority, getmypid());
 
-        echo PHP_EOL . date('Y.m.d H:i:s') . ' RatingRewardUsersSenderProcess is running';
+        echo PHP_EOL . date('Y-m-d H:i:s') . ' RatingRewardUsersSenderProcess is running';
 
         $total = $this->getDBManager()->ratingUsersRewardGetQueueLength();
         $connector = null;
@@ -102,7 +106,7 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
             //transfer agregation to few users
             $chainName = $connector->getPlatform();
             /** @var CommandQueryData $tx */
-            $tx = Transaction::init($connector);
+            $tx = Transaction::init($connector, 'PT4M');
             $opNumber = 0;
             foreach ($list as $data) {
                 foreach ($data['rewards'] as $reward) {
@@ -118,10 +122,19 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
                             ]
                         ]
                     );
-                    break;
                 }
             }
             Transaction::sign($chainName, $tx, ['active' => $this->rewardPoolWif]);
+
+            $bandwidth = $this->getTrxBandwidth(json_encode($tx->getParams(),JSON_UNESCAPED_UNICODE));
+            if ($bandwidth['used'] >= $bandwidth['available']) {
+                echo PHP_EOL . date('Y-m-d H:i:s') . ' - account bandwidth is not enought for trx : ' . round($bandwidth['used'] / $bandwidth['available'] * 100, 3) . '% from available ' . $bandwidth['available'];
+                break;
+            }
+            echo PHP_EOL . date('Y-m-d H:i:s') . ' - account bandwidth are : used ' . $bandwidth['used'] . ' from ' . $bandwidth['available'] . ' or ' . round($bandwidth['used'] / $bandwidth['available'] * 100, 3) . '%';
+
+            $connector->setConnectionTimeoutSeconds(20);
+            $connector->setMaxNumberOfTriesToReconnect(2);
             $answer = $command->execute(
                 $tx
             );
@@ -131,14 +144,14 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
                     $this->getDBManager()->ratingUsersRewardRemoveFromQueue($data);
                 }
                 $usersTotal = count($list);
-                echo PHP_EOL . date('Y.m.d H:i:s') . " - {$usersTotal} users got reward in block {$answer['result']['block_num']}";
+                echo PHP_EOL . date('Y-m-d H:i:s') . " - {$usersTotal} users got reward in block {$answer['result']['block_num']}";
             } else {
-                echo PHP_EOL . date('Y.m.d H:i:s') . ' - error during sending tokens ';
+                echo PHP_EOL . date('Y-m-d H:i:s') . ' - error during sending tokens ';
                 //log about error
             }
         }
 
-        echo PHP_EOL . date('Y.m.d H:i:s') . ' RatingRewardUsersSenderProcess did work';
+        echo PHP_EOL . date('Y-m-d H:i:s') . ' RatingRewardUsersSenderProcess did work';
     }
 
     /**
@@ -148,13 +161,40 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
      */
     public function isStartNeeded()
     {
+        $answer = false;
         $status = $this->getStatus();
-        return $status === ProcessInterface::STATUS_RUN
+        if (
+            $status === ProcessInterface::STATUS_RUN
             || (
                 $status === ProcessInterface::STATUS_STOPPED
                 && $this->getMode() === ProcessInterface::MODE_REPEAT
                 && $this->getDBManager()->ratingUsersRewardGetQueueLength()
-            );
+            )
+        ) {
+            try {
+                if ($this->connector === null) {
+                    $this->connectorClassName = $this->connectorClassNameForStartCheck;
+                    $this->connector = $this->getConnector();
+                }
+                $connector = $this->connector;
+                $connector->setConnectionTimeoutSeconds(1);
+                $bandwidth = Bandwidth::getBandwidthByAccountName($this->rewardPoolName, 'market', $connector);
+                if ($bandwidth['used'] < $bandwidth['available']) {
+                    $answer = true;
+                }
+            } catch (\Exception $e) {
+                $msg = '"' . $e->getMessage() . '" ' . $e->getTraceAsString();
+                echo PHP_EOL . date('Y-m-d H:i:s') . ' process with id=' . $this->getId() . ' got exception ' . $msg. PHP_EOL;
+                $this->errorInsertToLog(date('Y-m-d H:i:s') . '   ' . $msg);
+            }
+        }
+
+        if ($this->connector !== null) {
+            $this->connector->getConnection()->close();
+            $this->connector = null;
+        }
+
+        return $answer;
     }
 
     /**
@@ -162,7 +202,25 @@ class RatingRewardUsersSenderProcess extends ProcessAbstract
      *
      * @return void
      */
-    public function clearParentResources()
+    public function clearLegacyResourcesInChild()
     {
+    }
+
+    /**
+     * @param string $trxString
+     *
+     * @return array
+     * @throws \Exception
+     */
+    protected function getTrxBandwidth($trxString)
+    {
+        $connector = $this->getConnector();
+        $connector->setConnectionTimeoutSeconds(3);
+        $trxString = mb_strlen($trxString, '8bit');
+        $bandwidth = Bandwidth::getBandwidthByAccountName($this->rewardPoolName, 'market', $connector);
+
+        $bandwidth['used'] = $trxString * 10 + $bandwidth['used'];
+
+        return $bandwidth;
     }
 }
