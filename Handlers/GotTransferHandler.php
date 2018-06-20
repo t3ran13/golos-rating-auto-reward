@@ -89,12 +89,12 @@ class GotTransferHandler extends HandlerAbstract
                 ];
                 $this->getDBManager()->ratingUsersRewardAddToQueue($dataForReward);
 
-                echo PHP_EOL . date('Y.m.d H:i:s') . ' - user=' . $fromUser . ' set rating rewards to "' . $event['op'][1]['memo'] . '"';
+                echo PHP_EOL . date('Y-m-d H:i:s') . ' - user=' . $fromUser . ' set rating rewards to "' . $event['op'][1]['memo'] . '"';
             }
         }
 
         $eventsTotal = count($events);
-        echo PHP_EOL . date('Y.m.d H:i:s') .  " GotTransferHandler handled {$eventsTotal} events";
+        echo PHP_EOL . date('Y-m-d H:i:s') .  " GotTransferHandler handled {$eventsTotal} events";
     }
 
     /**
