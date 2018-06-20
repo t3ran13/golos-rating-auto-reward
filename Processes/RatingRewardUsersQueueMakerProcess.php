@@ -78,7 +78,7 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
         pcntl_setpriority($this->priority, getmypid());
 
         $listenerId = $this->getId();
-//        echo PHP_EOL . ' - RatingRewardQueueMakerProcess is running';
+        echo PHP_EOL . date('Y-m-d H:i:s') . ' RatingRewardUsersQueueMakerProcess is running';
         $first = $this->getDBManager()->ratingPostRewardGetFirstFromQueue();
 //        echo PHP_EOL . ' - first' . print_r($first, true);
 
@@ -92,10 +92,19 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
             $commandQuery->setParamByKey('1', $first['permlink']);//onlyVirtual
 
             $command = new GetContentCommand($this->getConnector());
-            $data = $command->execute(
-                $commandQuery,
-                'result'
+            $answer = $command->execute(
+                $commandQuery
             );
+            //if got wrong answer from api
+            if (!isset($answer['result'])) {
+                echo PHP_EOL . date('Y-m-d H:i:s') . ' RatingRewardUsersQueueMakerProcess got wrong answer, skip post';
+                continue;
+            } elseif (empty($answer['result'])) {
+                echo PHP_EOL . date('Y-m-d H:i:s') . ' RatingRewardUsersQueueMakerProcess got empty post answer, from connector '
+                    . $this->getConnector()->getCurrentUrl();
+                continue;
+            }
+            $data = $answer['result'];
 
             $meta = json_decode($data['json_metadata'], true);
             $totalUsers = count($meta['users']);
@@ -138,7 +147,7 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
                     }
                     $usersTotal = count($meta['users']);
                     $usersRewarded = count($users);
-                    echo PHP_EOL . date('Y.m.d H:i:s') . " - {$usersRewarded} from {$usersTotal} users added for reward (" . implode(', ', $rewards) . ") from post /{$data['category']}/@{$data['author']}/{$data['permlink']}";
+                    echo PHP_EOL . date('Y-m-d H:i:s') . " - {$usersRewarded} from {$usersTotal} users added for reward (" . implode(', ', $rewards) . ") from post /{$data['category']}/@{$data['author']}/{$data['permlink']}";
                 }
             }
             $this->getDBManager()->ratingPostRewardRemovePostFromQueue($first);
@@ -169,7 +178,7 @@ class RatingRewardUsersQueueMakerProcess extends ProcessAbstract
      *
      * @return void
      */
-    public function clearParentResources()
+    public function clearLegacyResourcesInChild()
     {
     }
 }
