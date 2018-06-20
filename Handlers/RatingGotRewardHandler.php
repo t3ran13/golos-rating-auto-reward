@@ -77,7 +77,7 @@ class RatingGotRewardHandler extends HandlerAbstract
         }
 
         $eventsTotal = count($events);
-        echo PHP_EOL . date('Y.m.d H:i:s') .  " RatingGotRewardHandler handled {$eventsTotal} events";
+        echo PHP_EOL . date('Y-m-d H:i:s') .  " RatingGotRewardHandler handled {$eventsTotal} events";
     }
 
     /**
