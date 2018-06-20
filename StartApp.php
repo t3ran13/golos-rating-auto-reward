@@ -64,7 +64,7 @@ if (
     try {
         $mainProcess->start();
 
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
 
         $msg = '"' . $e->getMessage() . '" ' . $e->getTraceAsString();
         echo PHP_EOL . ' --- mainProcess got exception ' . $msg . PHP_EOL;
